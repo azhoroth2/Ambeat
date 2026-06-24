@@ -9,117 +9,124 @@ struct ContentView: View {
             Color.black
                 .ignoresSafeArea()
 
-            // Concentric animated waves visualizer
+            // Sound-Reactive Pixel Wave Visualizer
             TimelineView(.animation) { timelineContext in
                 let time = timelineContext.date.timeIntervalSinceReferenceDate
                 let level = audioEngine.currentLevel
 
                 Canvas { context, size in
                     let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                    let maxRadius = max(size.width, size.height) * 0.75
+                    let maxRadius = max(size.width, size.height) * 0.70
                     
-                    // Wave properties - static ring radii to prevent visual snapping
-                    let spacing: Double = 16.0
-                    let numRings = Int(maxRadius / spacing)
+                    // Pixel grid configuration
+                    let pixelSize: CGFloat = 8.0
+                    let gap: CGFloat = 4.0
+                    let cellSize = pixelSize + gap
                     
-                    // Sound-modulated propagation wave phase
-                    // We keep propagation speed constant to avoid phase jumps, but modulate wave intensity by sound
-                    let speed = 3.5
+                    // Wave propagation speed
+                    let speed = 4.0
                     let wavePhaseOffset = time * speed
                     
-                    for r in 1...numRings {
-                        let radius = Double(r) * spacing
-                        if radius < 15 { continue }
-                        
-                        // Normalized radius progress (0...1)
-                        let progress = radius / maxRadius
-                        
-                        // Wave intensity based on sine ripple propagating outward
-                        let ripplePhase = radius * 0.04 - wavePhaseOffset
-                        let ripple = 0.5 + 0.5 * sin(ripplePhase) // 0...1 osc
-                        
-                        // Modulate width and opacity by audio level and the wave ripple
-                        let levelScale = level * 2.5 // Boost level impact
-                        
-                        // Ripple height is boosted significantly by audio level
-                        let waveIntensity = ripple * (0.2 + levelScale * 1.8)
-                        
-                        // Bold minimalist line width
-                        let strokeWidth = 1.0 + waveIntensity * 6.0
-                        
-                        // Fading opacity: closer to edges fades out, boosted by wave intensity and level
-                        let edgeFade = 1.0 - progress
-                        let opacity = (0.04 + waveIntensity * 0.45) * edgeFade
-                        
-                        // Segmented dash pattern mimicking CodePen grid subdivisions
-                        // Since radius is static, dashCount is perfectly stable (no snapping)
-                        let dashCount = 4 + Int(radius / 24) * 4
-                        let perimeter = 2.0 * Double.pi * radius
-                        let dashLength = perimeter / Double(dashCount * 2)
-                        
-                        // Staggered rotation: outer rings rotate slower, giving a spiral effect
-                        let rotation = time * 0.12 * (1.0 - progress)
-                        
-                        // Copy context to isolate transformations per ring
-                        var ringContext = context
-                        ringContext.opacity = opacity
-                        
-                        // Rotate ring around center
-                        ringContext.translateBy(x: center.x, y: center.y)
-                        ringContext.rotate(by: Angle(radians: rotation))
-                        ringContext.translateBy(x: -center.x, y: -center.y)
-                        
-                        var path = Path()
-                        path.addEllipse(in: CGRect(
-                            x: center.x - radius,
-                            y: center.y - radius,
-                            width: radius * 2,
-                            height: radius * 2
-                        ))
-                        
-                        ringContext.stroke(
-                            path,
-                            with: .color(.white),
-                            style: StrokeStyle(
-                                lineWidth: strokeWidth,
-                                lineCap: .round,
-                                dash: [dashLength, dashLength]
+                    // Calculate grid offset to center the pixels perfectly
+                    let cols = Int(size.width / cellSize)
+                    let rows = Int(size.height / cellSize)
+                    let startX = (size.width - CGFloat(cols) * cellSize) / 2 + cellSize / 2
+                    let startY = (size.height - CGFloat(rows) * cellSize) / 2 + cellSize / 2
+                    
+                    let levelScale = level * 3.5 // Reactivity boost
+                    
+                    for c in 0..<cols {
+                        for r in 0..<rows {
+                            let x = startX + CGFloat(c) * cellSize
+                            let y = startY + CGFloat(r) * cellSize
+                            
+                            let dx = x - center.x
+                            let dy = y - center.y
+                            let distance = sqrt(dx*dx + dy*dy)
+                            
+                            // Normalized progress (0...1) from center
+                            let progress = distance / maxRadius
+                            let edgeFade = max(0.0, 1.0 - progress)
+                            
+                            // Ripple wave phase propagating outwards from center
+                            let ripplePhase = distance * 0.035 - wavePhaseOffset
+                            let ripple = 0.5 + 0.5 * sin(ripplePhase) // 0...1 oscillation
+                            
+                            // Wave intensity scales dramatically with sound
+                            let waveIntensity = ripple * (0.15 + levelScale * 1.6)
+                            
+                            // Pixel scale: scales up on wave peak
+                            let scale = 0.5 + ripple * 0.5 * (1.0 + levelScale * 0.4)
+                            let currentPixelSize = pixelSize * scale
+                            
+                            // Opacity: background pixels are dim, wave is bright
+                            let opacity = (0.04 + waveIntensity * 0.75) * edgeFade
+                            
+                            if opacity < 0.01 { continue }
+                            
+                            // Draw glow layer for active wave pixels (boxShadow emulation)
+                            if waveIntensity > 0.18 {
+                                let glowSize = currentPixelSize * 2.0
+                                let glowRect = CGRect(
+                                    x: x - glowSize / 2,
+                                    y: y - glowSize / 2,
+                                    width: glowSize,
+                                    height: glowSize
+                                )
+                                context.fill(
+                                    Path(glowRect),
+                                    with: .color(.white.opacity(0.14 * waveIntensity * edgeFade))
+                                )
+                            }
+                            
+                            // Draw the solid pixel
+                            let rect = CGRect(
+                                x: x - currentPixelSize / 2,
+                                y: y - currentPixelSize / 2,
+                                width: currentPixelSize,
+                                height: currentPixelSize
                             )
-                        )
+                            
+                            context.fill(
+                                Path(rect),
+                                with: .color(.white.opacity(opacity))
+                            )
+                        }
                     }
                 }
             }
             .ignoresSafeArea()
-
-            // Play / Stop button in the absolute geometric center (size remains same)
-            Button(action: {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    audioEngine.toggle()
-                }
-            }) {
-                HStack(spacing: 8) {
-                    Image(systemName: audioEngine.isPlaying ? "stop.fill" : "play.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .contentTransition(.symbolEffect(.replace))
-
-                    Text(audioEngine.isPlaying ? "Stop" : "Play")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                }
-                .foregroundColor(audioEngine.isPlaying ? .black : .white)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(
-                    Group {
-                        if audioEngine.isPlaying {
-                            Capsule()
-                                .fill(Color.white)
-                        } else {
-                            Capsule()
-                                .strokeBorder(Color.white, lineWidth: 1.5)
-                        }
-                    }
-                )
-            }
+ 
+             // Play / Stop button in the absolute geometric center (size remains same)
+             Button(action: {
+                 withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                     audioEngine.toggle()
+                 }
+             }) {
+                 HStack(spacing: 8) {
+                     Image(systemName: audioEngine.isPlaying ? "stop.fill" : "play.fill")
+                         .font(.system(size: 14, weight: .bold))
+                         .contentTransition(.symbolEffect(.replace))
+ 
+                     Text(audioEngine.isPlaying ? "Stop" : "Play")
+                         .font(.system(size: 14, weight: .bold, design: .rounded))
+                 }
+                 .foregroundColor(audioEngine.isPlaying ? .black : .white)
+                 .padding(.horizontal, 24)
+                 .padding(.vertical, 12)
+                 .background(
+                     Group {
+                         if audioEngine.isPlaying {
+                             Capsule()
+                                 .fill(Color.white)
+                         } else {
+                             Capsule()
+                                 .strokeBorder(Color.white, lineWidth: 1.5)
+                                 .background(Capsule().fill(Color.black)) // prevent showing pixel grid lines under transparent button text
+                         }
+                     }
+                 )
+             }
             .buttonStyle(.plain)
         }
         .frame(width: 400, height: 400)
