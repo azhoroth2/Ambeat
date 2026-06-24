@@ -134,14 +134,63 @@ struct ContentView: View {
                             let waveIntensity = finalIntensity * (0.15 + levelScale * 1.6)
                             
                             // Pixel scale: scales up on wave parts, boosted by Kick base punch
-                            let scale = 0.5 + finalIntensity * 0.5 * (1.0 + levelScale * 0.4) + kickPulse * 0.35
-                            let currentPixelSize = pixelSize * scale
+                            var scale = 0.5 + finalIntensity * 0.5 * (1.0 + levelScale * 0.4) + kickPulse * 0.35
                             
                             // Hi-hat hit effect: fast sparkling metallic grain dust
                             let hatSparkle = ((r * 31 + c * 17) % 7 == 0) ? hatLevel * 0.6 : 0.0
                             
                             // Opacity: background pixels are dim, wave is bright, boosted by Kick and Hat sparkles
-                            let opacity = (0.04 + waveIntensity * 0.75 + kickPulse * 0.4 + hatSparkle) * edgeFade
+                            var opacity = (0.04 + waveIntensity * 0.75 + kickPulse * 0.4 + hatSparkle) * edgeFade
+                            
+                            // 4. Border pixel visualizer: drum hits trigger pixels appearing at the popover border
+                            let borderDist = min(x, size.width - x, y, size.height - y)
+                            let borderRange: CGFloat = 28.0 // Width of the border zone in points
+                            
+                            if borderDist < borderRange {
+                                // Normalized distance from the absolute edge (0 = at edge, 1 = borderRange points inward)
+                                let edgeProgress = borderDist / borderRange
+                                
+                                // Smooth transition from edge to interior (brightest at the edge, fading as it goes in)
+                                let borderFade = 1.0 - edgeProgress
+                                
+                                // Perimeter coordinate: coordinate tracing around the square perimeter from 0...1
+                                var perimeterT: Double = 0.0
+                                if y <= borderRange { // Top edge
+                                    perimeterT = x / size.width
+                                } else if x >= size.width - borderRange { // Right edge
+                                    perimeterT = 1.0 + y / size.height
+                                } else if y >= size.height - borderRange { // Bottom edge
+                                    perimeterT = 2.0 + (size.width - x) / size.width
+                                } else { // Left edge
+                                    perimeterT = 3.0 + (size.height - y) / size.height
+                                }
+                                perimeterT /= 4.0 // Normalize to 0...1
+                                
+                                // Kick border wave: wide ripples propagating inward from the boundary
+                                let kickPhase = perimeterT * Double.pi * 4.0 + edgeProgress * Double.pi * 2.5 - time * 8.0
+                                let kickWave = sin(kickPhase) * 0.5 + 0.5
+                                let kickBorder = kickLevel * kickWave * borderFade * 0.95
+                                
+                                // Snare border wave: sharper, faster ripples propagating inward
+                                let snarePhase = perimeterT * Double.pi * 8.0 + edgeProgress * Double.pi * 4.0 - time * 14.0
+                                let snareWave = sin(snarePhase) * 0.5 + 0.5
+                                let snareBorder = snareLevel * snareWave * borderFade * 0.75
+                                
+                                // Hi-hat border wave: micro-sparkles shimmering and fading inward
+                                let hatNoise = sin(Double(r * 43 + c * 29) + time * 20.0) * 0.5 + 0.5
+                                let hatBorder = (hatNoise > 0.70) ? hatLevel * 0.8 * borderFade : 0.0
+                                
+                                let totalBorderIntensity = kickBorder + snareBorder + hatBorder
+                                
+                                if totalBorderIntensity > 0.01 {
+                                    // Scale up border pixels on drum hits
+                                    scale = max(scale, 0.4 + (1.0 + totalBorderIntensity * 0.5) * 0.6)
+                                    // Make border pixels light up at the edge and fade inward, overriding edgeFade
+                                    opacity = max(opacity, totalBorderIntensity)
+                                }
+                            }
+                            
+                            let currentPixelSize = pixelSize * scale
                             
                             if opacity < 0.01 { continue }
                             
