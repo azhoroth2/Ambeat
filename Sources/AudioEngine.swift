@@ -9,17 +9,12 @@ import Observation
 final class DSPState: @unchecked Sendable {
     var leftFrequency: Double = 200.0
     var rightFrequency: Double = 208.0
-    var targetAmplitude: Double = 0.15
+    var targetAmplitude: Double = 0.12
     var currentAmplitude: Double = 0.0
     var phase: Double = 0.0
 
     // LFO state
     var lfoPhase: Double = 0.0
-
-    // Melody mode parameters (written by main thread, read by melody render)
-    var melodyScaleCount: Int = 4
-    var melodyIntervalMin: Double = 3.0   // seconds
-    var melodyIntervalMax: Double = 5.0   // seconds
 }
 
 /// Shared state for the pink noise generator, kept separate from
@@ -82,9 +77,6 @@ final class AudioEngine: @unchecked Sendable {
 
     // MARK: - Public State
 
-    /// The currently selected sound mode.
-    private(set) var currentMode: SoundMode = .relaxation
-
     /// Whether the engine is currently playing.
     private(set) var isPlaying: Bool = false
 
@@ -101,6 +93,7 @@ final class AudioEngine: @unchecked Sendable {
     private let dsp = DSPState()
     private let noiseDsp = PinkNoiseState()
     private let melodyDsp = MelodyState()
+    private var fadeTask: Task<Void, Never>?
 
     /// Amplitude ramp speed per sample. At 44100 Hz, ~20 ms ramp ≈ 882 samples.
     private static let rampStep: Double = 0.00113
@@ -120,6 +113,7 @@ final class AudioEngine: @unchecked Sendable {
     private static let melodyReleaseTime: Double = 4.0   // seconds
     private static let melodySilenceChance: Double = 0.3 // 30% chance of rest
     private static let melodyDetune: Double = 1.5        // ±Hz random per note
+    private static let pentatonicScale: [Double] = [130.81, 146.83, 164.81, 196.00, 220.00]
 
     // MARK: - Lifecycle
 
@@ -129,36 +123,63 @@ final class AudioEngine: @unchecked Sendable {
 
     @MainActor
     func start() {
-        guard !isPlaying else { return }
+        fadeTask?.cancel()
         setupIfNeeded()
-        do {
-            try engine.start()
-            isPlaying = true
-        } catch {
-            print("AudioEngine: failed to start — \(error.localizedDescription)")
+        
+        if !engine.isRunning {
+            engine.mainMixerNode.outputVolume = 0.0
+            do {
+                try engine.start()
+            } catch {
+                print("AudioEngine: failed to start — \(error.localizedDescription)")
+                return
+            }
+        }
+        
+        isPlaying = true
+        
+        fadeTask = Task {
+            let duration = 1.5 // seconds
+            let steps = 50
+            let interval = duration / Double(steps)
+            let startVol = Double(engine.mainMixerNode.outputVolume)
+            
+            for step in 1...steps {
+                if Task.isCancelled { return }
+                let t = Double(step) / Double(steps)
+                let vol = startVol + (1.0 - startVol) * t
+                engine.mainMixerNode.outputVolume = Float(vol)
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            }
+            engine.mainMixerNode.outputVolume = 1.0
         }
     }
 
     @MainActor
     func stop() {
+        fadeTask?.cancel()
+        
         guard isPlaying else { return }
-        engine.stop()
         isPlaying = false
-        dsp.currentAmplitude = 0.0
-    }
-
-    @MainActor
-    func setMode(_ mode: SoundMode) {
-        currentMode = mode
-        dsp.leftFrequency = mode.leftFrequency
-        dsp.rightFrequency = mode.rightFrequency
-        dsp.targetAmplitude = mode.amplitude
-
-        // Update melody parameters
-        dsp.melodyScaleCount = mode.melodyScaleCount
-        let interval = mode.melodyIntervalRange
-        dsp.melodyIntervalMin = interval.min
-        dsp.melodyIntervalMax = interval.max
+        
+        fadeTask = Task {
+            let duration = 1.5 // seconds
+            let steps = 50
+            let interval = duration / Double(steps)
+            let startVol = Double(engine.mainMixerNode.outputVolume)
+            
+            for step in 1...steps {
+                if Task.isCancelled { return }
+                let t = Double(step) / Double(steps)
+                let vol = startVol * (1.0 - t)
+                engine.mainMixerNode.outputVolume = Float(vol)
+                try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+            }
+            
+            engine.mainMixerNode.outputVolume = 0.0
+            engine.stop()
+            dsp.currentAmplitude = 0.0
+        }
     }
 
     @MainActor
@@ -173,15 +194,6 @@ final class AudioEngine: @unchecked Sendable {
 
         let sampleRate = engine.outputNode.inputFormat(forBus: 0).sampleRate
         let stereoFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
-
-        // Apply initial mode parameters
-        dsp.leftFrequency = currentMode.leftFrequency
-        dsp.rightFrequency = currentMode.rightFrequency
-        dsp.targetAmplitude = currentMode.amplitude
-        dsp.melodyScaleCount = currentMode.melodyScaleCount
-        let interval = currentMode.melodyIntervalRange
-        dsp.melodyIntervalMin = interval.min
-        dsp.melodyIntervalMax = interval.max
 
         // ── 1. Oscillator node (stereo, LFO-modulated) ──────────────
 
@@ -288,7 +300,7 @@ final class AudioEngine: @unchecked Sendable {
         let melAmp = Self.melodyAmplitude
         let silenceChance = Self.melodySilenceChance
         let detuneRange = Self.melodyDetune
-        let scale = SoundMode.pentatonicScale
+        let scale = Self.pentatonicScale
 
         let melody = AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
             let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
@@ -312,9 +324,9 @@ final class AudioEngine: @unchecked Sendable {
                     }
 
                     // Read mode-dependent parameters
-                    let scaleCount = dsp.melodyScaleCount
-                    let minInterval = dsp.melodyIntervalMin
-                    let maxInterval = dsp.melodyIntervalMax
+                    let scaleCount = 5
+                    let minInterval = 3.0
+                    let maxInterval = 6.0
 
                     // Decide: note or silence?
                     let chance = Self.nextRandomUnit(&melDsp.rngState)

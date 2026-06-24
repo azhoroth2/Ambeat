@@ -4,21 +4,16 @@ import SwiftUI
 struct AmbientGenApp: App {
 
     init() {
-        // When running as a Swift Package executable (no .app bundle),
-        // we need to manually promote the process to a regular GUI app
-        // so that windows appear and the app shows in the Dock.
+        // Run as an accessory app (menu bar utility, hides Dock icon)
         DispatchQueue.main.async {
-            NSApp.setActivationPolicy(.regular)
-            NSApp.activate(ignoringOtherApps: true)
-            NSApp.windows.first?.makeKeyAndOrderFront(nil)
+            NSApp.setActivationPolicy(.accessory)
         }
     }
 
     var body: some Scene {
-        WindowGroup {
+        MenuBarExtra("AmbientGen", systemImage: "headphones") {
             ContentView()
         }
-        .defaultSize(width: 420, height: 340)
-        .windowResizability(.contentSize)
+        .menuBarExtraStyle(.window)
     }
 }
