@@ -54,6 +54,11 @@ final class MelodyState: @unchecked Sendable {
     // Timer: samples remaining until next note trigger
     var samplesUntilNext: Int = 44100   // ~1s initial delay before first note
 
+    // Chord progression state
+    var currentChordIndex: Int = 0
+    var lastNoteScaleIndex: Int = 3
+    var beatsInCurrentChord: Int = 0
+
     // PRNG (separate seed from pink noise)
     var rngState: UInt64 = 0xCAFE_BABE_DEAD_BEEF
 
@@ -154,7 +159,23 @@ final class AudioEngine: @unchecked Sendable {
     private static let melodyReleaseTime: Double = 4.0   // seconds
     private static let melodySilenceChance: Double = 0.3 // 30% chance of rest
     private static let melodyDetune: Double = 1.5        // ±Hz random per note
-    private static let pentatonicScale: [Double] = [130.81, 146.83, 164.81, 196.00, 220.00]
+    private static let baseScale: [Double] = [
+        130.81, // C3 (0)
+        146.83, // D3 (1)
+        164.81, // E3 (2)
+        174.61, // F3 (3)
+        196.00, // G3 (4)
+        220.00, // A3 (5)
+        246.94, // B3 (6)
+        261.63, // C4 (7)
+        293.66, // D4 (8)
+        329.63, // E4 (9)
+        349.23, // F4 (10)
+        392.00, // G4 (11)
+        440.00, // A4 (12)
+        493.88, // B4 (13)
+        523.25  // C5 (14)
+    ]
 
     // MARK: - Lifecycle
 
@@ -352,9 +373,6 @@ final class AudioEngine: @unchecked Sendable {
 
         let melDsp = self.melodyDsp
         let melAmp = Self.melodyAmplitude
-        let silenceChance = Self.melodySilenceChance
-        let detuneRange = Self.melodyDetune
-        let scale = Self.pentatonicScale
 
         let melody = AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
             let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
@@ -377,48 +395,89 @@ final class AudioEngine: @unchecked Sendable {
                         melDsp.activeVoiceIndex = -1
                     }
 
-                    // Read mode-dependent parameters
-                    let scaleCount = 5
-                    let minInterval = 3.0
-                    let maxInterval = 6.0
-
-                    // Decide: note or silence?
-                    let chance = Self.nextRandomUnit(&melDsp.rngState)
-                    if chance > silenceChance {
-                        // Pick a random note from the allowed range
-                        let noteIdx = Int(Self.nextRandomUnit(&melDsp.rngState) * Double(scaleCount)) % scaleCount
+                    // Chord progression subsets of indices in `baseScale`
+                    // baseScale: C3, D3, E3, F3, G3, A3, B3, C4, D4, E4, F4, G4, A4, B4, C5
+                    let chord0 = [5, 7, 9, 11, 12, 14]         // Am7
+                    let chord1 = [3, 5, 7, 9, 10, 12, 14]        // Fmaj7
+                    let chord2 = [0, 2, 4, 6, 7, 9, 11, 13, 14] // Cmaj7
+                    let chord3 = [1, 2, 4, 6, 8, 9, 11, 13]      // G6
+                    
+                    let chords = [chord0, chord1, chord2, chord3]
+                    let currentChord = chords[melDsp.currentChordIndex]
+                    
+                    // Decide duration of the note in beats (1 beat = 33076 samples at 44.1kHz, which is 80 BPM)
+                    let beatLengthSamples = 33076
+                    
+                    // Choose duration (2, 3, 4, or 6 beats)
+                    let durRoll = Self.nextRandomUnit(&melDsp.rngState)
+                    let durationBeats: Int
+                    if durRoll < 0.40 {
+                        durationBeats = 4 // Whole note
+                    } else if durRoll < 0.70 {
+                        durationBeats = 3 // Dotted half note
+                    } else if durRoll < 0.90 {
+                        durationBeats = 2 // Half note
+                    } else {
+                        durationBeats = 6 // Sustained pad note
+                    }
+                    
+                    // Update chord progression
+                    melDsp.beatsInCurrentChord += durationBeats
+                    if melDsp.beatsInCurrentChord >= 16 {
+                        melDsp.beatsInCurrentChord = 0
+                        melDsp.currentChordIndex = (melDsp.currentChordIndex + 1) % 4
+                    }
+                    
+                    // 15% chance of playing silence (rests/pause in the pad melody)
+                    let playChance = Self.nextRandomUnit(&melDsp.rngState)
+                    if playChance > 0.15 {
+                        // Perform random walk on the chord scale index
+                        let walkRoll = Self.nextRandomUnit(&melDsp.rngState)
+                        var nextIndex = melDsp.lastNoteScaleIndex
                         
-                        // Octave randomization:
-                        // 60% chance base octave (multiplier 1.0)
-                        // 30% chance octave up (multiplier 2.0)
-                        // 10% chance octave down (multiplier 0.5)
-                        let octaveChance = Self.nextRandomUnit(&melDsp.rngState)
-                        var octaveMultiplier = 1.0
-                        if octaveChance > 0.9 {
-                            octaveMultiplier = 0.5
-                        } else if octaveChance > 0.6 {
-                            octaveMultiplier = 2.0
+                        if walkRoll < 0.25 {
+                            nextIndex += 1 // Step up
+                        } else if walkRoll < 0.50 {
+                            nextIndex -= 1 // Step down
+                        } else if walkRoll < 0.70 {
+                            nextIndex += 2 // Jump up
+                        } else if walkRoll < 0.90 {
+                            nextIndex -= 2 // Jump down
+                        } // 10% chance to repeat same note
+                        
+                        // Clamp index to the chord scale size
+                        if nextIndex < 0 {
+                            nextIndex = 0
+                        } else if nextIndex >= currentChord.count {
+                            nextIndex = currentChord.count - 1
                         }
                         
-                        // Apply micro-detune: ±1.5 Hz random offset
-                        let detune = (Self.nextRandomUnit(&melDsp.rngState) * 2.0 - 1.0) * detuneRange
-                        let frequency = (scale[noteIdx] * octaveMultiplier) + detune
-
+                        melDsp.lastNoteScaleIndex = nextIndex
+                        
+                        // Get frequency
+                        let scaleIdx = currentChord[nextIndex]
+                        let baseFreq = Self.baseScale[scaleIdx]
+                        
+                        // Apply micro-detune: ±1.2 Hz random offset for organic analog feel
+                        let detune = (Self.nextRandomUnit(&melDsp.rngState) * 2.0 - 1.0) * 1.2
+                        let frequency = baseFreq + detune
+                        
                         // Randomize amplitude factor (0.7 to 1.0)
                         let ampFactor = 0.7 + Self.nextRandomUnit(&melDsp.rngState) * 0.3
-
-                        // Randomize Attack Time (1.0 to 2.0 seconds)
-                        let randomizedAttackTime = 1.0 + Self.nextRandomUnit(&melDsp.rngState) * 1.0
+                        
+                        // Pad envelope speeds:
+                        // Attack: 1.2 to 2.2 seconds
+                        let randomizedAttackTime = 1.2 + Self.nextRandomUnit(&melDsp.rngState) * 1.0
                         let attackRate = 1.0 / (randomizedAttackTime * sampleRate)
-
-                        // Randomize Decay Time (0.4 to 0.6 seconds)
+                        
+                        // Decay: 0.4 to 0.6 seconds
                         let randomizedDecayTime = 0.4 + Self.nextRandomUnit(&melDsp.rngState) * 0.2
                         let decayRate = 0.2 / (randomizedDecayTime * sampleRate)
-
-                        // Randomize Release Time (3.0 to 5.0 seconds)
-                        let randomizedReleaseTime = 3.0 + Self.nextRandomUnit(&melDsp.rngState) * 2.0
-
-                        // Find a voice: idle first, then lowest envelope value
+                        
+                        // Release: 3.5 to 5.0 seconds (long tail)
+                        let randomizedReleaseTime = 3.5 + Self.nextRandomUnit(&melDsp.rngState) * 1.5
+                        
+                        // Find a voice
                         var selectedVoiceIndex = -1
                         for i in 0..<5 {
                             if melDsp.voices[i].stage == 0 {
@@ -435,7 +494,7 @@ final class AudioEngine: @unchecked Sendable {
                                 }
                             }
                         }
-
+                        
                         if selectedVoiceIndex >= 0 {
                             melDsp.voices[selectedVoiceIndex].frequency = frequency
                             melDsp.voices[selectedVoiceIndex].phase = 0.0
@@ -450,11 +509,10 @@ final class AudioEngine: @unchecked Sendable {
                             melDsp.activeVoiceIndex = selectedVoiceIndex
                         }
                     }
-
-                    // Schedule next trigger
-                    let intervalRange = maxInterval - minInterval
-                    let nextInterval = minInterval + Self.nextRandomUnit(&melDsp.rngState) * intervalRange
-                    melDsp.samplesUntilNext = Int(nextInterval * sampleRate)
+                    
+                    // Schedule next note trigger: duration in samples plus a small humanizing timing jitter (±800 samples)
+                    let humanJitter = Int((Self.nextRandomUnit(&melDsp.rngState) * 2.0 - 1.0) * 800.0)
+                    melDsp.samplesUntilNext = durationBeats * beatLengthSamples + humanJitter
                 }
 
                 // ── Synthesis & Envelope ──

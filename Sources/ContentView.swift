@@ -279,6 +279,16 @@ struct ContentView: View {
              .buttonStyle(.plain)
         }
         .frame(width: 400, height: 400)
+        .background(WindowAccessor { window in
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            window.styleMask.insert(.fullSizeContentView)
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.hasShadow = true
+            window.invalidateShadow()
+        })
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     /// Determines Chladni plate vibration modes and formula style procedurally based on active melody frequency.
@@ -323,6 +333,23 @@ struct ContentView: View {
                    sin(mMod * Double.pi * u) * cos(nMod * Double.pi * v)
         }
     }
+}
+
+/// Helper to access and customize the underlying macOS window hosting the SwiftUI view
+struct WindowAccessor: NSViewRepresentable {
+    var callback: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            if let window = view.window {
+                callback(window)
+            }
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
 }
 
 #Preview {
