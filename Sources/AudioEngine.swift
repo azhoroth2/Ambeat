@@ -31,6 +31,9 @@ final class PinkNoiseState: @unchecked Sendable {
     var index: Int = 0
     /// Simple xorshift64 PRNG state (non-zero seed)
     var rngState: UInt64 = 0xDEAD_BEEF_CAFE_1234
+
+    // Vinyl crackle pop emulation state
+    var popValue: Double = 0.0
 }
 
 /// Shared state for the generative melody voice.
@@ -58,6 +61,10 @@ final class MelodyState: @unchecked Sendable {
 
     // PRNG (separate seed from pink noise)
     var rngState: UInt64 = 0xCAFE_BABE_DEAD_BEEF
+
+    // Wow & Flutter LFO phases
+    var wowPhase: Double = 0.0
+    var flutterPhase: Double = 0.0
 }
 
 /// Real-time binaural-beat audio engine with pink noise and LFO.
@@ -238,7 +245,7 @@ final class AudioEngine: @unchecked Sendable {
             return noErr
         }
 
-        // ── 2. Pink noise node (stereo) ─────────────────────────────
+        // ── 2. Pink noise node (stereo + vinyl crackle) ─────────────
 
         let noiseDsp = self.noiseDsp
         let noiseAmp = Self.noiseAmplitude
@@ -247,7 +254,22 @@ final class AudioEngine: @unchecked Sendable {
             let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
 
             for frame in 0..<Int(frameCount) {
-                let sample = Self.nextPinkSample(noiseDsp) * noiseAmp
+                var sample = Self.nextPinkSample(noiseDsp) * noiseAmp
+
+                // Vinyl crackle emulator: random warm pops with fast decay
+                let crackleChance = Self.nextRandomUnit(&noiseDsp.rngState)
+                if crackleChance < 0.00004 { // average ~1.8 pops per second
+                    // Trigger a pop: positive or negative impulse with random height
+                    let direction = Self.nextRandom(&noiseDsp.rngState) > 0.0 ? 1.0 : -1.0
+                    let popHeight = 0.04 + Self.nextRandomUnit(&noiseDsp.rngState) * 0.14
+                    noiseDsp.popValue = direction * popHeight
+                }
+                
+                // Add pop value to the noise sample
+                sample += Float(noiseDsp.popValue)
+                
+                // Exponential decay of the pop: 94% per sample (decays to ~0 in 1-2 ms)
+                noiseDsp.popValue *= 0.94
 
                 // Write same sample to both channels
                 if abl.count >= 2 {
@@ -372,6 +394,17 @@ final class AudioEngine: @unchecked Sendable {
                 // ── Synthesis & Envelope ──
                 var sample: Float = 0.0
                 
+                // Calculate wow & flutter pitch warp factors
+                melDsp.wowPhase += twoPi * 0.38 / sampleRate
+                if melDsp.wowPhase >= twoPi { melDsp.wowPhase -= twoPi }
+                
+                melDsp.flutterPhase += twoPi * 11.5 / sampleRate
+                if melDsp.flutterPhase >= twoPi { melDsp.flutterPhase -= twoPi }
+                
+                let wow = sin(melDsp.wowPhase) * 0.0038
+                let flutter = sin(melDsp.flutterPhase) * 0.0018
+                let pitchWarp = 1.0 + wow + flutter
+                
                 for i in 0..<5 {
                     var voice = melDsp.voices[i]
                     if voice.stage == 0 { continue }
@@ -429,9 +462,12 @@ final class AudioEngine: @unchecked Sendable {
                         let ph = voice.phase
                         // Harmonics synthesis: fundamental (1.0), 2nd (0.3), 3rd (0.15)
                         let signal = sin(ph) * 1.0 + sin(ph * 2.0) * 0.3 + sin(ph * 3.0) * 0.15
-                        sample += Float(signal * gain * voice.amplitudeFactor * melAmp)
+                        
+                        // Warm tape saturation: rational approximation of tanh (soft clipping)
+                        let saturated = signal / (1.0 + abs(signal) * 0.25)
+                        sample += Float(saturated * gain * voice.amplitudeFactor * melAmp)
 
-                        voice.phase += twoPi * voice.frequency / sampleRate
+                        voice.phase += twoPi * (voice.frequency * pitchWarp) / sampleRate
                         if voice.phase >= twoPi {
                             voice.phase -= twoPi
                         }
