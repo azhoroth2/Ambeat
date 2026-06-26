@@ -3,7 +3,20 @@
 
   ],
   "copyCommands" : {
-
+    "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen_AmbientGen.bundle/Icon.svg" : {
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/Icon.svg"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen_AmbientGen.bundle/Icon.svg"
+        }
+      ]
+    }
   },
   "explicitTargetDependencyImportCheckingMode" : {
     "none" : {
@@ -36,7 +49,15 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<AmbientGen-arm64-apple-macosx26.0-debug.module-resources>"
         },
         {
           "kind" : "file",
@@ -49,7 +70,8 @@
       "objects" : [
         "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/AmbientGenApp.swift.o",
         "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/AudioEngine.swift.o",
-        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/ContentView.swift.o"
+        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/ContentView.swift.o",
+        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/resource_bundle_accessor.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -64,7 +86,7 @@
         "-j12",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
-        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
         "-module-cache-path",
         "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/ModuleCache",
         "-parseable-output",
@@ -122,6 +144,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/resource_bundle_accessor.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/Modules/AmbientGen.swiftmodule"
         }
       ],
@@ -129,7 +155,8 @@
       "sources" : [
         "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/AmbientGenApp.swift",
         "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/AudioEngine.swift",
-        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/ContentView.swift"
+        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/ContentView.swift",
+        "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/DerivedSources/resource_bundle_accessor.swift"
       ],
       "tempsPath" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build",
       "wholeModuleOptimization" : false
@@ -149,6 +176,7 @@
       "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/AmbientGenApp.swift",
       "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/AudioEngine.swift",
       "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/ContentView.swift",
+      "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/DerivedSources/resource_bundle_accessor.swift",
       "-I",
       "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -163,7 +191,7 @@
       "-j12",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
-      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
       "-module-cache-path",
       "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/ModuleCache",
       "-parseable-output",
@@ -257,6 +285,10 @@
         {
           "kind" : "file",
           "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/Sources/ContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/DerivedSources/resource_bundle_accessor.swift"
         }
       ],
       "outputFilePath" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/sources"
@@ -279,6 +311,10 @@
         {
           "kind" : "file",
           "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/ContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.build/resource_bundle_accessor.swift.o"
         }
       ],
       "outputFilePath" : "/Users/sstefaniuk/Documents/GitHub/Ambigen/Ambient-Gen/.build/arm64-apple-macosx/debug/AmbientGen.product/Objects.LinkFileList"
