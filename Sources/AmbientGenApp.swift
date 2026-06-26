@@ -14,7 +14,7 @@ struct AmbientGenApp: App {
 
     // Load the custom menu bar icon from resources
     private var menuBarIcon: NSImage? {
-        guard let url = Bundle.module.url(forResource: "Icon", withExtension: "svg"),
+        guard let url = Bundle.main.url(forResource: "Icon", withExtension: "svg"),
               let image = NSImage(contentsOf: url) else {
             return nil
         }

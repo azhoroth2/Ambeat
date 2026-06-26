@@ -1,5 +1,6 @@
 @preconcurrency import AVFoundation
 import Observation
+import WidgetKit
 
 /// Shared DSP state read by the real-time audio thread and written by the main thread.
 ///
@@ -263,7 +264,20 @@ final class AudioEngine: @unchecked Sendable {
 
     // MARK: - Lifecycle
 
-    init() {}
+    init() {
+        // Register observer for distributed notifications from the widget
+        DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name("com.ambigen.AmbientGen.toggle"),
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in
+                self?.toggle()
+            }
+        }
+        // Initialize App Group state
+        WidgetStateBridge.setIsPlaying(false)
+    }
 
     // MARK: - Public API
 
@@ -284,6 +298,8 @@ final class AudioEngine: @unchecked Sendable {
         }
         
         isPlaying = true
+        WidgetStateBridge.setIsPlaying(true)
+        WidgetCenter.shared.reloadAllTimelines()
         
         patternTimer = Timer.scheduledTimer(withTimeInterval: 180.0, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -321,6 +337,8 @@ final class AudioEngine: @unchecked Sendable {
         
         guard isPlaying else { return }
         isPlaying = false
+        WidgetStateBridge.setIsPlaying(false)
+        WidgetCenter.shared.reloadAllTimelines()
         
         fadeTask = Task {
             let duration = 1.5 // seconds
