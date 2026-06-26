@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var audioEngine = AudioEngine()
+    @State private var isHoveringClose = false
 
     var body: some View {
         @Bindable var engine = audioEngine
@@ -276,6 +277,28 @@ struct ContentView: View {
                         )
                 }
                 .buttonStyle(.plain)
+
+                // Close/Quit button in the top right corner
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            NSApp.terminate(nil)
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(isHoveringClose ? .white.opacity(0.8) : .white.opacity(0.35))
+                                .animation(.easeInOut(duration: 0.15), value: isHoveringClose)
+                                .padding(14)
+                        }
+                        .buttonStyle(.plain)
+                        .onHover { hovering in
+                            isHoveringClose = hovering
+                        }
+                        .help("Quit AmbientGen")
+                    }
+                    Spacer()
+                }
             }
             .frame(maxHeight: .infinity)
 
