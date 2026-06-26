@@ -288,7 +288,7 @@ struct ContentView: View {
                 
                 // Global Controls
                 VStack(spacing: 12) {
-                    MixerSlider(icon: "speaker.wave.3.fill", label: "Master Volume", value: $engine.globalVolume)
+                    MixerSlider(label: "Master Volume", value: $engine.globalVolume)
                     TempoSlider(bpm: $engine.bpm)
                 }
                 
@@ -298,10 +298,10 @@ struct ContentView: View {
                 
                 // Channel Controls
                 VStack(spacing: 12) {
-                    MixerSlider(icon: "waveform", label: "Binaural Beats", value: $engine.oscVolume)
-                    MixerSlider(icon: "wind", label: "Pink Noise", value: $engine.noiseVolume)
-                    MixerSlider(icon: "music.note", label: "Ambient Synth", value: $engine.melodyVolume)
-                    MixerSlider(icon: "circle.circle", label: "Lo-Fi Drums", value: $engine.drumsVolume)
+                    MixerSlider(label: "Binaural Beats", value: $engine.oscVolume)
+                    MixerSlider(label: "Pink Noise", value: $engine.noiseVolume)
+                    MixerSlider(label: "Ambient Synth", value: $engine.melodyVolume)
+                    MixerSlider(label: "Lo-Fi Drums", value: $engine.drumsVolume)
                 }
             }
             .padding(.horizontal, 24)
@@ -381,31 +381,23 @@ struct WindowAccessor: NSViewRepresentable {
 }
 
 struct MixerSlider: View {
-    let icon: String
     let label: String
     @Binding var value: Double
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.7))
-                .frame(width: 20, alignment: .center)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(label)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.85))
-                    Spacer()
-                    Text("\(Int(value * 100))%")
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.55))
-                }
-                
-                Slider(value: $value, in: 0...1)
-                    .tint(.white)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
+                Spacer()
+                Text("\(Int(value * 100))%")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
             }
+            
+            Slider(value: $value, in: 0...1)
+                .tint(.white)
         }
     }
 }
@@ -414,26 +406,19 @@ struct TempoSlider: View {
     @Binding var bpm: Double
     
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "metronome")
-                .font(.system(size: 13))
-                .foregroundColor(.white.opacity(0.7))
-                .frame(width: 20, alignment: .center)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("Tempo")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.white.opacity(0.85))
-                    Spacer()
-                    Text("\(Int(bpm)) BPM")
-                        .font(.system(size: 11, weight: .regular, design: .monospaced))
-                        .foregroundColor(.white.opacity(0.55))
-                }
-                
-                Slider(value: $bpm, in: 50...200, step: 1)
-                    .tint(.white)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Tempo")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.85))
+                Spacer()
+                Text("\(Int(bpm)) BPM")
+                    .font(.system(size: 11, weight: .regular, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.55))
             }
+            
+            Slider(value: $bpm, in: 50...200, step: 1)
+                .tint(.white)
         }
     }
 }
