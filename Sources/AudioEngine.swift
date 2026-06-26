@@ -67,7 +67,7 @@ final class MelodyState: @unchecked Sendable {
     var wowPhase: Double = 0.0
     var flutterPhase: Double = 0.0
     
-    var bpm: Double = 80.0
+    var bpm: Double = 112.0
     
     var patternIndex: Int = 0
     var activePatternIndex: Int = 0
@@ -95,7 +95,7 @@ final class DrumState: @unchecked Sendable {
     // PRNG for snare and hat noise
     var rngState: UInt64 = 0x5678_ABCD_1234_EF01
     
-    var bpm: Double = 80.0
+    var bpm: Double = 112.0
     
     var pixelateCounter: Int = 0
     var pixelateHoldValue: Float = 0.0
@@ -146,8 +146,8 @@ final class AudioEngine: @unchecked Sendable {
         }
     }
 
-    /// Tempo (BPM) of the sequencers (50...120)
-    var bpm: Double = 80.0 {
+    /// Tempo (BPM) of the sequencers (50...200)
+    var bpm: Double = 112.0 {
         didSet {
             melodyDsp.bpm = bpm
             drumDsp.bpm = bpm
@@ -155,16 +155,16 @@ final class AudioEngine: @unchecked Sendable {
     }
 
     /// Volumes for each sound source (0...1)
-    var oscVolume: Double = 0.25 {
+    var oscVolume: Double = 0.20 {
         didSet { oscNode?.volume = Float(oscVolume) }
     }
-    var noiseVolume: Double = 0.15 {
+    var noiseVolume: Double = 0.14 {
         didSet { noiseNode?.volume = Float(noiseVolume) }
     }
-    var melodyVolume: Double = 1.0 {
+    var melodyVolume: Double = 0.22 {
         didSet { melodyNode?.volume = Float(melodyVolume) }
     }
-    var drumsVolume: Double = 0.20 {
+    var drumsVolume: Double = 0.86 {
         didSet { drumNode?.volume = Float(drumsVolume) }
     }
 

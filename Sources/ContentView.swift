@@ -285,13 +285,6 @@ struct ContentView: View {
 
             // Always-available Mixer Panel
             VStack(spacing: 16) {
-                HStack {
-                    Text("Mixer")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.leading, 32)
-                    Spacer()
-                }
                 
                 // Global Controls
                 VStack(spacing: 12) {
